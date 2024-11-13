@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f2f2f2;
+        padding: 20px;
+      }
+
+      h2,
+      h3,
+      h4 {
+        text-shadow: 1px 1px 2px #000000;
+      }
+
+      .price-up {
+        color: green;
+      }
+      .price-down {
+        color: red;
+      }
+      .percentage-up {
+        color: green;
+      }
+      .percentage-down {
+        color: red;
+      }
+
+      .order-book {
+        display: flex;
+        justify-content: space-between;
+        max-width: 1000px;
+        margin: 20px auto;
+        padding: 20px;
+        background: linear-gradient(145deg, #ffffff, #e1e1e1);
+        border-radius: 15px;
+        box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2),
+          -5px -5px 15px rgba(255, 255, 255, 0.4);
+      }
+
+      .order-list {
+        width: 48%;
+        padding: 10px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.1),
+          -5px -5px 15px rgba(255, 255, 255, 0.5);
+      }
+
+      .order-list h4 {
+        margin-top: 0;
+        text-align: center;
+        color: #333;
+      }
+
+      .order-list ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      .order-list li {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px;
+        border-radius: 5px;
+        margin: 5px 0;
+        background-color: #f7f7f7;
+        box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1),
+          inset -2px -2px 5px rgba(255, 255, 255, 0.3);
+      }
+
+      .buy-order {
+        color: green;
+        font-weight: bold;
+      }
+
+      .sell-order {
+        color: red;
+        font-weight: bold;
+      }
+
+      .order-list li:hover {
+        transform: scale(1.05);
+        transition: transform 0.2s ease-in-out;
+      }
+    </style>
+  </head>
+  <body>
+    <div ng-app="stockApp" ng-controller="stockController">
+      <h2>Real-Time OXO Prices</h2>
+
+      <p>Here’s a list of OXO prices that update in real time:</p>
+
+      <ul>
+        <li ng-repeat="stock in stocks">
+          <strong>{{ stock.name }}:</strong>
+          <span
+            ng-class="{'price-up': stock.price > stock.previousPrice, 'price-down': stock.price < stock.previousPrice}"
+          >
+            ${{ stock.price | number:4 }}
+          </span>
+          <span
+            ng-class="{'percentage-up': stock.price > stock.startingPrice, 'percentage-down': stock.price < stock.startingPrice}"
+          >
+            ({{ (stock.percentChange | number:2) }}%)
+          </span>
+        </li>
+      </ul>
+
+      <h3>Order Book</h3>
+      <div class="order-book">
+        <!-- Buy Orders -->
+        <div class="order-list">
+          <h4>Buy Orders</h4>
+          <ul>
+            <li ng-repeat="order in filteredBuyOrders">
+              <span class="buy-order">${{ order.price | number:4 }}</span>
+              <span>{{ order.quantity }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Sell Orders -->
+        <div class="order-list">
+          <h4>Sell Orders</h4>
+          <ul>
+            <li ng-repeat="order in filteredSellOrders">
+              <span class="sell-order">${{ order.price | number:4 }}</span>
+              <span>{{ order.quantity }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      var app = angular.module("stockApp", []);
+
+      app.controller("stockController", function ($scope, $timeout) {
+        $scope.stocks = [
+          {
+            name: "OXO",
+            price: 0.0251,
+            previousPrice: 0.0251,
+            startingPrice: 0.0251,
+            percentChange: 0,
+          },
+        ];
+
+        $scope.buyOrders = [];
+        $scope.sellOrders = [];
+
+        function generateOrderBook() {
+          $scope.buyOrders = [];
+          $scope.sellOrders = [];
+
+          const marketPrice = $scope.stocks[0].price;
+          const lowerLimit = marketPrice * 0.9; // 10% below the market price
+          const upperLimit = marketPrice * 1.1; // 10% above the market price
+
+          for (let i = 0; i < 10; i++) {
+            const buyPrice = parseFloat(
+              (marketPrice - Math.random() * 0.001).toFixed(4)
+            );
+            const sellPrice = parseFloat(
+              (marketPrice + Math.random() * 0.001).toFixed(4)
+            );
+
+            if (buyPrice >= lowerLimit) {
+              // Generate random number and round it to the nearest ten
+              const quantity =
+                Math.round((Math.random() * 1000000) / 10) * 10 + 100;
+              $scope.buyOrders.push({ price: buyPrice, quantity: quantity });
+            }
+            if (sellPrice <= upperLimit) {
+              // Generate random number and round it to the nearest ten
+              const quantity =
+                Math.round((Math.random() * 1000000) / 10) * 10 + 100;
+              $scope.sellOrders.push({ price: sellPrice, quantity: quantity });
+            }
+          }
+
+          $scope.buyOrders.sort((a, b) => b.price - a.price);
+          $scope.sellOrders.sort((a, b) => a.price - b.price);
+
+          // Update filtered orders within 10% range
+          $scope.filteredBuyOrders = $scope.buyOrders.filter(
+            (order) => order.price >= lowerLimit
+          );
+          $scope.filteredSellOrders = $scope.sellOrders.filter(
+            (order) => order.price <= upperLimit
+          );
+        }
+
+        function updateStockPrices() {
+          $scope.stocks.forEach(function (stock) {
+            var prevPrice = stock.price;
+            var change = (Math.random() * 0.001 - 0.0005).toFixed(4);
+            stock.price = parseFloat(
+              (stock.price + parseFloat(change)).toFixed(4)
+            );
+            stock.percentChange = (
+              ((stock.price - stock.startingPrice) / stock.startingPrice) *
+              100
+            ).toFixed(2);
+            stock.previousPrice = prevPrice;
+          });
+
+          generateOrderBook(); // Update order book based on the new market price
+          var randomInterval = Math.floor(Math.random() * 4000) + 1000;
+          $timeout(updateStockPrices, randomInterval);
+        }
+
+        updateStockPrices();
+      });
+    </script>
+  </body>
+</html>
